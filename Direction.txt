@@ -1,0 +1,4 @@
+Open cmd as admin
+cd C:\Users\ALPER\Desktop\CSE476 Project\AIHealhAsistant
+.\venv\Scripts\Activate
+python HealthAsistant.py

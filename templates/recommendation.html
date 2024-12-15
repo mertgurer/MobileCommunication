@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Recommendations</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #333;
+        }
+
+        .result-container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2980b9;
+        }
+
+        p {
+            font-size: 18px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="result-container">
+        <h1>Your Health Recommendations</h1>
+        <p>{{ recommendation }}</p>
+        <a href="/" style="text-decoration: none;">
+            <button>Go Back</button>
+        </a>
+    </div>
+    <footer>
+        <p>&copy; 2024 Health Assistant BY AHMET ALPER UZUNTEPE AND MERT GÜRER</p>
+    </footer>
+
+    <style>
+        footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            background-color: #f4f4f9;
+            padding: 10px 0;
+            color: #aaa; /* Slik bir renk için gri */
+            font-size: 14px;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1); /* Hafif bir gölge */
+        }
+
+        footer p {
+            margin: 0;
+        }
+    </style>
+</body>
+</html>
