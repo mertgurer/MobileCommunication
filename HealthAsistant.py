@@ -153,7 +153,7 @@ def predict_charges():
     # Set minimum charges to 1000
     charges = 1000 if predicted_cost < 1000 else predicted_cost
 
-    return send_from_directory(ROOT_DIR, "result.html", result="{:,.2f}".format(charges))
+    return render_template("result.html", result="{:,.2f}".format(charges))
 
 @app.route("/health_recommendation", methods=["POST"])
 def health_recommendation():
@@ -171,7 +171,7 @@ def health_recommendation():
     # Generate detailed recommendations
     recommendation = generate_detailed_recommendation(user_data)
     
-    return send_from_directory(ROOT_DIR, "recommendation.html", recommendation=recommendation)
+    return render_template("recommendation.html", recommendation=recommendation)
 
 if __name__ == "__main__":
     app.run(debug=True)
