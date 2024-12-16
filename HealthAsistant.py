@@ -4,7 +4,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, accuracy_score, confusion_matrix, classification_report
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template, jsonify, send_from_directory
+import os
 
 #initialize Flask app
 app = Flask(__name__)
@@ -129,54 +130,48 @@ def generate_detailed_recommendation(user_data):
     return recommendation
 
 #Flask routes
+# Ensure the root path is correctly handled
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 @app.route("/")
 def home():
-    return render_template("index.html")  #serving the HTML form
+    return send_from_directory(ROOT_DIR, "index.html")  # Serve index.html from the root directory
 
 @app.route("/predict_charges", methods=["POST"])
 def predict_charges():
-    data = request.form.to_dict()  #fet the form data
+    data = request.form.to_dict()  # Get the form data
     user_data = pd.DataFrame([data])
     user_data = preprocess_data(user_data)
     
-    #being sure about the model is defined
+    # Ensure the model is defined
     if cost_model is None:
         return "Error: The cost prediction model has not been trained properly."
     
-    #predict charges using the cost model
-    # Modelden tahmini al
+    # Predict charges using the cost model
     predicted_cost = cost_model.predict(user_data[["age", "bmi", "children", "smoker"]])[0]
 
-    # 1000'den küçükse 1000 yap
-    charges = 1000 if predicted_cost < 1000 else predicted_cost    #start charge point via 1000
+    # Set minimum charges to 1000
+    charges = 1000 if predicted_cost < 1000 else predicted_cost
 
-    return render_template("result.html", result="{:,.2f}".format(charges))  #show result in a new page
+    return send_from_directory(ROOT_DIR, "result.html", result="{:,.2f}".format(charges))
 
 @app.route("/health_recommendation", methods=["POST"])
 def health_recommendation():
     data = request.form.to_dict()
-    #print("Received Data:", data)  #debugging print
     user_data = pd.DataFrame([data])
     
-    #check if sex exists in the data
     if 'sex' not in user_data.columns:
         return "Error: Missing 'sex' field in the data."
 
     user_data = preprocess_data(user_data)
     
-    #predict health risk based on users data
+    # Predict health risk
     risk = health_model.predict(user_data[["age", "bmi", "children", "smoker"]])[0]
     
-    #generate detailed recommendations
+    # Generate detailed recommendations
     recommendation = generate_detailed_recommendation(user_data)
     
-    #define health recommendations based on risk category
-    recommendations = {
-        0: "You are in the low-risk category. Keep maintaining your current healthy lifestyle!",
-        1: "You are in the high-risk category. We recommend improving your BMI through exercise, a balanced diet, and quitting smoking if applicable."
-    }
-    
-    return render_template("recommendation.html", recommendation=recommendation)
+    return send_from_directory(ROOT_DIR, "recommendation.html", recommendation=recommendation)
 
 if __name__ == "__main__":
     app.run(debug=True)
