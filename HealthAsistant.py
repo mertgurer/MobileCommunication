@@ -4,53 +4,51 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, accuracy_score, confusion_matrix, classification_report
-from flask import Flask, request, render_template, jsonify, send_from_directory
-import os
+from flask import Flask, request, render_template
 
-#initialize Flask app
+# Initialize Flask app
 app = Flask(__name__)
 
-#load dataset
+# Declare global variables for models
+cost_model = None
+health_model = None
+
+# Load dataset
 try:
     insurance_data = pd.read_csv("insurance.csv")
+    print("Insurance data loaded successfully.")
 except FileNotFoundError:
-    insurance_data = pd.DataFrame({
-        "age": [], "sex": [], "bmi": [], "children": [], "smoker": [],
-        "region": [], "charges": []
-    })
+    raise FileNotFoundError("Error: 'insurance.csv' file is missing. Please ensure it is uploaded.")
 
+# Preprocess data
 def preprocess_data(data):
     data = data.copy()
     data["sex"] = data["sex"].map({"male": 0, "female": 1})
     data["smoker"] = data["smoker"].map({"no": 0, "yes": 1})
-    
-    #being sure numerical fields are of the correct type
     data["age"] = pd.to_numeric(data["age"], errors='coerce')
     data["bmi"] = pd.to_numeric(data["bmi"], errors='coerce')
     data["children"] = pd.to_numeric(data["children"], errors='coerce')
-    
+
     if "region" in data.columns:
         data = pd.get_dummies(data, columns=["region"], drop_first=True)
-    
+
     return data
 
 
 processed_data = preprocess_data(insurance_data)
 
-# train a regression model for medical cost prediction
+# Train cost model
 def train_cost_model(data):
     if data.empty:
         return None, None, None
-    #######FEATURES : age,bmi,children,smoker
     features = data[["age", "bmi", "children", "smoker"]]
-    target = data["charges"]  # Use charges as the target
+    target = data["charges"]
     X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
     model = LinearRegression()
     model.fit(X_train, y_train)
     return model, X_test, y_test
 
-
-def evaluate_cost_model(model, X_test, y_test):#calculate accurancy
+def evaluate_cost_model(model, X_test, y_test):
     predictions = model.predict(X_test)
     mae = mean_absolute_error(y_test, predictions)
     mse = mean_squared_error(y_test, predictions)
@@ -60,20 +58,12 @@ def evaluate_cost_model(model, X_test, y_test):#calculate accurancy
     print(f"Mean Squared Error (MSE): {mse:.2f}")
     print(f"R-squared Score: {r2:.2f}")
 
-#training the cost model
-cost_model, X_cost_test, y_cost_test = train_cost_model(processed_data)
-if cost_model:
-    evaluate_cost_model(cost_model, X_cost_test, y_cost_test)
-
-
-#traiming a classification model for health recommendations (bmi and smoking)
+# Train health model
 def train_health_model(data):
     if data.empty:
         return None, None, None
-    #######FEATURES : age,bmi,children,smoker
     features = data[["age", "bmi", "children", "smoker"]]
-    target = data["charges"]
-    target = target > target.median()  # Binary classification: high or low health risk
+    target = data["charges"] > data["charges"].median()  # Binary classification
     X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
     model = LogisticRegression(max_iter=200)
     model.fit(X_train, y_train)
@@ -91,11 +81,7 @@ def evaluate_health_model(model, X_test, y_test):
     print("Classification Report:")
     print(report)
 
-health_model, X_health_test, y_health_test = train_health_model(processed_data)
-if health_model:
-    evaluate_health_model(health_model, X_health_test, y_health_test)
-
-#detailed recommendations based on user data
+# Generate detailed health recommendation
 def generate_detailed_recommendation(user_data):
     age = user_data["age"].values[0]
     bmi = user_data["bmi"].values[0]
@@ -103,7 +89,7 @@ def generate_detailed_recommendation(user_data):
     
     recommendation = ""
 
-    #recommendations on bmi based
+    # Recommendations based on BMI
     if bmi < 18.5:
         recommendation += "Your BMI is below the healthy range (underweight). It's important to focus on gaining healthy weight through a balanced diet. Consult with a healthcare provider for personalized advice.\n"
     elif 18.5 <= bmi < 24.9:
@@ -113,13 +99,13 @@ def generate_detailed_recommendation(user_data):
     else:
         recommendation += "Your BMI is in the obese range. It's important to focus on weight loss through a healthy diet, regular physical activity, and possibly consult with a healthcare provider.\n"
 
-    #recommendations ob smoking based 
+    # Recommendations based on smoking
     if smoker == 1:
         recommendation += "As a smoker, you are at a higher risk for many health conditions. Quitting smoking will have immediate and long-term benefits for your health. We strongly recommend seeking support to quit.\n"
     else:
         recommendation += "Great job! Staying smoke-free is one of the best things you can do for your long-term health.\n"
 
-    #recommendations on age based 
+    # Recommendations based on age
     if age < 30:
         recommendation += "As a young adult, now is the best time to build healthy habits that will benefit you in the long term. Stay active, eat nutritious food, and avoid smoking.\n"
     elif 30 <= age < 50:
@@ -129,49 +115,69 @@ def generate_detailed_recommendation(user_data):
     
     return recommendation
 
-#Flask routes
-# Ensure the root path is correctly handled
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Initialize models globally
+def initialize_models():
+    global cost_model, health_model
 
+    print("Initializing cost model...")
+    cost_model, X_cost_test, y_cost_test = train_cost_model(processed_data)
+    if cost_model:
+        print("Cost model trained successfully.")
+        evaluate_cost_model(cost_model, X_cost_test, y_cost_test)
+    else:
+        print("Failed to train cost model.")
+
+    print("Initializing health model...")
+    health_model, X_health_test, y_health_test = train_health_model(processed_data)
+    if health_model:
+        print("Health model trained successfully.")
+        evaluate_health_model(health_model, X_health_test, y_health_test)
+    else:
+        print("Failed to train health model.")
+
+initialize_models()
+
+# Flask routes
 @app.route("/")
 def home():
-    return send_from_directory(ROOT_DIR, "index.html")  # Serve index.html from the root directory
+    return render_template("index.html")
 
 @app.route("/predict_charges", methods=["POST"])
 def predict_charges():
-    data = request.form.to_dict()  # Get the form data
-    user_data = pd.DataFrame([data])
-    user_data = preprocess_data(user_data)
-    
-    # Ensure the model is defined
+    global cost_model
+
     if cost_model is None:
         return "Error: The cost prediction model has not been trained properly."
-    
-    # Predict charges using the cost model
-    predicted_cost = cost_model.predict(user_data[["age", "bmi", "children", "smoker"]])[0]
 
-    # Set minimum charges to 1000
+    data = request.form.to_dict()
+    user_data = pd.DataFrame([data])
+    user_data = preprocess_data(user_data)
+
+    if user_data.empty or not all(col in user_data.columns for col in ["age", "bmi", "children", "smoker"]):
+        return "Error: Invalid input data. Please check the form fields."
+
+    predicted_cost = cost_model.predict(user_data[["age", "bmi", "children", "smoker"]])[0]
     charges = 1000 if predicted_cost < 1000 else predicted_cost
 
     return render_template("result.html", result="{:,.2f}".format(charges))
 
 @app.route("/health_recommendation", methods=["POST"])
 def health_recommendation():
+    global health_model
+
+    if health_model is None:
+        return "Error: The health recommendation model has not been trained properly."
+
     data = request.form.to_dict()
     user_data = pd.DataFrame([data])
-    
-    if 'sex' not in user_data.columns:
-        return "Error: Missing 'sex' field in the data."
-
     user_data = preprocess_data(user_data)
-    
-    # Predict health risk
-    risk = health_model.predict(user_data[["age", "bmi", "children", "smoker"]])[0]
-    
-    # Generate detailed recommendations
+
+    if user_data.empty or not all(col in user_data.columns for col in ["age", "bmi", "children", "smoker"]):
+        return "Error: Invalid input data. Please check the form fields."
+
     recommendation = generate_detailed_recommendation(user_data)
-    
     return render_template("recommendation.html", recommendation=recommendation)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
